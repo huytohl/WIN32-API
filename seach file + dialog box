@@ -1,0 +1,233 @@
+#include <Windows.h>
+#include <CommCtrl.h>
+#include<shlwapi.h>
+#pragma comment(lib,"comctl32.lib")
+#pragma comment(lib,"shlwapi.lib")
+#define IDC_BUTTON      1003
+
+
+
+
+LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
+LRESULT CALLBACK DialogProc1(HWND, UINT, WPARAM, LPARAM);
+static  HWND            hStatic, hButton, hEdit, hListview;
+INITCOMMONCONTROLSEX    ice;
+int                     cxClient, cyClient, iLength, cCount;
+HINSTANCE               hInstance;
+TCHAR                   szText[MAX_PATH], szFolder[MAX_PATH];
+WIN32_FIND_DATA         wfd;
+HANDLE                  hFind;
+LVCOLUMN                lvc;
+LVITEM                  lvi;
+
+void CreateDialogBox1(HWND);
+void RegisterDialogClass1(HWND);
+HINSTANCE ghInstance;
+
+
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
+{
+	MSG msg;
+	HWND hwnd;
+	WNDCLASS wc;
+
+	wc.lpszClassName = TEXT("HUY");
+	wc.hInstance = hInstance;
+	wc.hCursor = LoadCursor(NULL, IDC_ARROW);
+	wc.hIcon = LoadIcon(NULL, IDI_APPLICATION);
+	wc.style = CS_HREDRAW | CS_VREDRAW;
+	wc.hbrBackground = (HBRUSH)GetStockObject(LTGRAY_BRUSH);
+	wc.lpfnWndProc = WndProc;
+	wc.cbClsExtra = 0;
+	wc.cbWndExtra = 0;
+	wc.lpszMenuName = NULL;
+	RegisterClass(&wc);
+
+	hwnd = CreateWindow(wc.lpszClassName, TEXT("HUY"),
+		WS_OVERLAPPEDWINDOW | WS_VISIBLE,
+		200, 150, 350, 300,
+		0, 0, hInstance, 0);
+		
+
+	ShowWindow(hwnd, nCmdShow);
+	UpdateWindow(hwnd);
+
+	while (GetMessage(&msg, NULL, 0, 0))
+	{
+		TranslateMessage(&msg);
+		DispatchMessage(&msg);
+
+	}
+	return msg.wParam;
+}
+
+LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+
+	switch (msg)
+	{
+	
+	case WM_CREATE:
+	{
+					  RegisterDialogClass1(hwnd);
+
+					  CreateWindow(TEXT("STATIC"), TEXT("an vao nut ben duoi"),
+						  WS_VISIBLE | WS_CHILD | WS_BORDER,
+						  30, 20, 150, 20,
+						  hwnd, NULL, NULL, NULL);
+
+
+
+					  CreateWindow(TEXT("BUTTON"), TEXT("list view"),
+						  WS_VISIBLE | WS_CHILD,
+						  20, 80, 120, 25,
+						  hwnd, (HMENU)1, NULL, NULL);
+
+
+
+					  return 0;
+	}
+
+	case WM_COMMAND:
+		if (LOWORD(wParam) == 1)
+		{
+			CreateDialogBox1(hwnd);
+		}
+		break;
+
+	case WM_CLOSE:
+	{
+					 DestroyWindow(0);
+					 break;
+	}
+	case WM_DESTROY:
+	{
+					   PostQuitMessage(0);
+					   return 0;
+	}
+	}
+	return DefWindowProc(hwnd, msg, wParam, lParam);
+}
+
+LRESULT CALLBACK DialogProc1(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+	
+	switch (msg)
+	{
+	case WM_CREATE:
+	{
+					  ice.dwSize = sizeof(INITCOMMONCONTROLSEX);
+					  ice.dwICC = ICC_LISTVIEW_CLASSES;
+					  InitCommonControlsEx(&ice);
+
+					  hStatic = CreateWindow(TEXT("STATIC"), TEXT("FOLDER"),
+						  WS_CHILD | WS_VISIBLE | WS_BORDER,
+						  20, 20, 65, 20,
+						  hwnd, (HMENU)1, hInstance, NULL);
+
+					  hEdit = CreateWindow(TEXT("EDIT"), TEXT(""),
+						  WS_BORDER | WS_CHILD | WS_VISIBLE,
+						  90, 20, 200, 20,
+						  hwnd, (HMENU)2, hInstance, NULL);
+
+					  hButton = CreateWindow(TEXT("button"), TEXT("ENTER"),
+						  WS_CHILD | WS_VISIBLE,
+						  70, 50, 50, 20,
+						  hwnd, (HMENU)3, hInstance, NULL);
+
+					  hListview = CreateWindowEx(WS_EX_DLGMODALFRAME | WS_EX_CLIENTEDGE, WC_LISTVIEW, TEXT(""),
+						  WS_CHILD | WS_VISIBLE | WS_BORDER | LVS_REPORT,
+						  30, 100, 600, 500,
+						  hwnd, (HMENU)4, hInstance, NULL);
+
+					  lvc.mask = LVCF_SUBITEM | LVCF_FMT | LVCF_WIDTH | LVCF_TEXT;
+					  lvc.fmt = LVCFMT_CENTER;
+					  lvc.cx = 60;
+					  lvc.iSubItem = 0;
+					  lvc.pszText = "STT";
+					  ListView_InsertColumn(hListview, 0, &lvc);
+
+					  lvc.cx = 100;
+					  lvc.iSubItem = 1;
+					  lvc.pszText = "NAME";
+					  ListView_InsertColumn(hListview, 1, &lvc);
+					  SetFocus(hEdit);
+					  break;
+	}
+	case WM_COMMAND:
+	{
+					   if(LOWORD(wParam) == 3)
+					   {
+					   case IDC_BUTTON:
+						   iLength = GetWindowTextLength(hEdit);
+						   if (iLength == 0)
+						   {
+							   MessageBox(hwnd, TEXT("Error or text is NULL"), TEXT("HUY"), MB_OK | MB_ICONEXCLAMATION);
+							   SetFocus(hEdit);
+							   return 0;
+						   }
+						   GetWindowText(hEdit, szFolder, iLength + 1);
+						   if (!PathIsDirectory(szFolder))
+						   {
+							   MessageBox(hwnd, TEXT("nhap sai roi! phai nhap c: moi dung "), TEXT("warning"), MB_OK | MB_ICONEXCLAMATION);
+							   SetFocus(hEdit);
+							   return 0;
+						   }
+						   wsprintf(szText, TEXT("%s\\*.*"), szFolder);
+						   hFind = FindFirstFile(szText, &wfd);
+						   if (hFind == INVALID_HANDLE_VALUE)
+						   {
+							   MessageBox(hwnd, TEXT("Folder is empty"), TEXT("HUY"), MB_OK | MB_ICONEXCLAMATION);
+							   SetFocus(hEdit);
+							   return 0;
+						   }
+
+						   ListView_DeleteAllItems(hListview);
+						   do
+						   {// Đếm và ghi vào Listview các tập tin và thư mục đã tìm được
+							   cCount = ListView_GetItemCount(hListview);
+							   lvi.mask = LVIF_TEXT;
+							   lvi.iItem = cCount;
+							   lvi.iSubItem = 0;
+							   lvi.pszText = szText;
+							   wsprintf(szText, TEXT("%d"), cCount + 1);
+							   ListView_InsertItem(hListview, &lvi);
+							   ListView_SetItemText(hListview, cCount, 1, wfd.cFileName);
+						   } while (FindNextFile(hFind, &wfd));
+						   FindClose(hFind);
+						   return 0;
+					   }
+					   break;
+	}
+	case WM_CLOSE:
+	{
+					 PostQuitMessage(0);
+					 break;
+	}
+	case WM_DESTROY:
+	{
+					   PostQuitMessage(0);
+					   break;
+	}
+	}
+	return (DefWindowProc(hwnd, msg, wParam, lParam));
+}
+
+void RegisterDialogClass1(HWND hwnd)
+{
+	WNDCLASSEX wc = { 0 };
+	wc.cbSize = sizeof(WNDCLASSEX);
+	wc.lpfnWndProc = (WNDPROC)DialogProc1;
+	wc.hInstance = ghInstance;
+	wc.hbrBackground = GetSysColorBrush(COLOR_3DFACE);
+	wc.lpszClassName = TEXT("DialogClass");
+	RegisterClassEx(&wc);
+}
+
+void CreateDialogBox1(HWND hwnd)
+{
+	CreateWindowEx(WS_EX_DLGMODALFRAME | WS_EX_TOPMOST, TEXT("DialogClass"),
+		TEXT("hoan doi"),
+		WS_VISIBLE | WS_SYSMENU | WS_CAPTION, 200, 50, 700, 700,
+		NULL, NULL, ghInstance, NULL);
+}
