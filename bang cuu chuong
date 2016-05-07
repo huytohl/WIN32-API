@@ -1,0 +1,115 @@
+#include <Windows.h>
+
+#define     IDC_EDIT            1001
+#define     IDC_LIST            1002
+#define     IDC_BUTTON_START    1003
+#define     IDC_BUTTON_CLOSE    1004
+
+LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
+void OnButtonStart(HWND, HWND, HWND);
+
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
+{
+	WNDCLASS wc;
+	MSG msg;
+	HWND hwnd = NULL;
+
+	wc.cbClsExtra = 0;
+	wc.cbWndExtra = 0;
+	wc.hbrBackground = GetSysColorBrush(COLOR_3DFACE);
+	wc.hCursor = LoadCursor(NULL, IDC_ARROW);
+	wc.hIcon = LoadIcon(NULL, IDI_APPLICATION);
+	wc.hInstance = hInstance;
+	wc.lpfnWndProc = WndProc;
+	wc.lpszClassName = TEXT("HUY");
+	wc.lpszMenuName = NULL;
+	wc.style = CS_HREDRAW | CS_VREDRAW;
+
+	if (!RegisterClass(&wc))
+	{
+		MessageBox(NULL, TEXT("Error : RegisterClass"), TEXT("HUY"), MB_OK | MB_ICONEXCLAMATION);
+		return 0;
+	}
+	hwnd = CreateWindow(wc.lpszClassName, wc.lpszClassName, WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, NULL, NULL, hInstance, NULL);
+	if (!hwnd)
+	{
+		MessageBox(NULL, TEXT("Error : CreateWindow"), TEXT("HUY"), MB_OK | MB_ICONEXCLAMATION);
+		return 0;
+	}
+	ShowWindow(hwnd, nCmdShow);
+	UpdateWindow(hwnd);
+	while (GetMessage(&msg, NULL, 0, 0))
+	{
+		TranslateMessage(&msg);
+		DispatchMessage(&msg);
+	}
+	return msg.wParam;
+}
+
+LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+	static  HWND    hEdit, hList, hButton1, hButton2;
+	HINSTANCE       hInstance;
+	int             cxClient, cyClient;
+
+	switch (msg)
+	{
+	case WM_CREATE:
+		hInstance = ((LPCREATESTRUCT)lParam)->hInstance;
+		hEdit = CreateWindow(TEXT("EDIT"), TEXT(""), WS_CHILD | WS_VISIBLE | WS_BORDER | ES_CENTER | ES_NUMBER, 0, 0, 0, 0, hwnd, (HMENU)IDC_EDIT, hInstance, NULL);
+		hList = CreateWindow(TEXT("LISTBOX"), TEXT(""), WS_CHILD | WS_VISIBLE | WS_BORDER, 0, 0, 0, 0, hwnd, (HMENU)IDC_LIST, hInstance, NULL);
+		hButton1 = CreateWindow(TEXT("BUTTON"), TEXT("Start"), WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, (HMENU)IDC_BUTTON_START, hInstance, NULL);
+		hButton2 = CreateWindow(TEXT("BUTTON"), TEXT("Close"), WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, (HMENU)IDC_BUTTON_CLOSE, hInstance, NULL);
+		return 0;
+	case WM_SIZE:
+		cxClient = LOWORD(lParam);
+		cyClient = HIWORD(lParam);
+		MoveWindow(hEdit, (cxClient - 100) / 2, 40, 100, 25, TRUE);
+		MoveWindow(hList, (cxClient - 200) / 2, (cyClient - 200) / 2, 200, 200, TRUE);
+		MoveWindow(hButton1, cxClient / 2 - 100, cyClient - 65, 80, 25, TRUE);
+		MoveWindow(hButton2, cxClient / 2 + 20, cyClient - 65, 80, 25, TRUE);
+		return 0;
+	case WM_COMMAND:
+		switch (LOWORD(wParam))
+		{
+		case IDC_BUTTON_START:
+			OnButtonStart(hwnd, hEdit, hList);
+			return 0;
+		case IDC_BUTTON_CLOSE:
+			SendMessage(hwnd, WM_CLOSE, 0, 0);
+			return 0;
+		}
+		break;
+	case WM_DESTROY:
+		PostQuitMessage(0);
+		return 0;
+	}
+	return DefWindowProc(hwnd, msg, wParam, lParam);
+}
+
+void OnButtonStart(HWND hwnd, HWND hEdit, HWND hList)
+{
+	TCHAR       szText[MAX_PATH];
+	int         i, iLength, iNum;
+
+	if ((iLength = GetWindowTextLength(hEdit)) <= 0)
+	{
+		MessageBox(hwnd, TEXT("Error or text is NULL"), TEXT("Huy"), MB_OK | MB_ICONEXCLAMATION);
+		SetFocus(hEdit);
+		return;
+	}
+	GetWindowText(hEdit, szText, iLength + 1);
+	iNum = atoi(szText);
+	if (iNum < 1 || iNum > 9)
+	{
+		MessageBox(hwnd, TEXT("Number is invalid"), TEXT("Huy"), MB_OK | MB_ICONEXCLAMATION);
+		SetFocus(hEdit);
+		return;
+	}
+	SendMessage(hList, LB_RESETCONTENT, 0, 0);
+	for (i = 1; i <= 10; i++)
+	{
+		wsprintf(szText, "  %d x %d = %d", iNum, i, iNum*i);
+		SendMessage(hList, LB_ADDSTRING, 0, (LPARAM)szText);
+	}
+}
