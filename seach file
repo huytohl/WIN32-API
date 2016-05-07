@@ -1,0 +1,159 @@
+#include <Windows.h>
+#include <CommCtrl.h>
+#include<shlwapi.h>
+#pragma comment(lib,"comctl32.lib")
+#pragma comment(lib,"shlwapi.lib")
+
+#define IDC_LISTVIEW    1001
+#define IDC_EDIT        1002
+#define IDC_BUTTON      1003
+#define IDC_STATIC      1004
+
+LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
+static  HWND            hStatic, hButton, hEdit, hListview;
+INITCOMMONCONTROLSEX    ice;
+int                     cxClient, cyClient, iLength, cCount;
+HINSTANCE               hInstance;
+TCHAR                   szText[MAX_PATH], szFolder[MAX_PATH];
+WIN32_FIND_DATA         wfd;
+HANDLE                  hFind;
+LVCOLUMN                lvc;
+LVITEM                  lvi;
+
+
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
+{
+	MSG msg;
+	HWND hwnd;
+	WNDCLASS wc;
+
+	wc.lpszClassName = TEXT("HUY");
+	wc.hInstance = hInstance;
+	wc.hCursor = LoadCursor(NULL, IDC_ARROW);
+	wc.hIcon = LoadIcon(NULL, IDI_APPLICATION);
+	wc.style = CS_HREDRAW | CS_VREDRAW;
+	wc.hbrBackground = (HBRUSH)GetStockObject(LTGRAY_BRUSH);
+	wc.lpfnWndProc = WndProc;
+	wc.cbClsExtra = 0;
+	wc.cbWndExtra = 0;
+	wc.lpszMenuName = NULL;
+	RegisterClass(&wc);
+
+	hwnd = CreateWindow(wc.lpszClassName, TEXT("HUY"),
+		WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
+		NULL, NULL, hInstance, NULL);
+
+	ShowWindow(hwnd, nCmdShow);
+	UpdateWindow(hwnd);
+
+	while (GetMessage(&msg,NULL,0,0))
+	{
+		TranslateMessage(&msg);
+		DispatchMessage(&msg);
+
+	}
+	return msg.wParam;
+}
+
+LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
+{
+	
+	switch (msg)
+	{
+	case WM_CREATE:
+		ice.dwSize = sizeof(INITCOMMONCONTROLSEX);
+		ice.dwICC = ICC_LISTVIEW_CLASSES;
+		InitCommonControlsEx(&ice);
+		hInstance = ((LPCREATESTRUCT)lparam)->hInstance;
+		hListview = CreateWindowEx(WS_EX_DLGMODALFRAME | WS_EX_CLIENTEDGE, WC_LISTVIEW, TEXT(""), WS_CHILD | WS_VISIBLE | LVS_REPORT, 0, 0, 0, 0, hwnd, (HMENU)IDC_LISTVIEW, hInstance, NULL);
+		hEdit = CreateWindow(TEXT("edit"), TEXT(""), WS_BORDER | WS_CHILD | WS_VISIBLE | ES_CENTER, 0, 0, 0, 0, hwnd, (HMENU)IDC_EDIT, hInstance, NULL);
+		hButton = CreateWindow(TEXT("button"), TEXT("ENTER"), WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, 0, 0, 0, 0, hwnd, (HMENU)IDC_BUTTON, hInstance, NULL);
+		hStatic = CreateWindow(TEXT("static"), TEXT("Folder :"), WS_BORDER | WS_CHILD | WS_VISIBLE | SS_CENTER, 0, 0, 0, 0, hwnd, (HMENU)IDC_STATIC, hInstance, NULL);
+
+		lvc.mask = LVCF_FMT | LVCF_WIDTH | LVCF_TEXT | LVCF_SUBITEM;
+		lvc.fmt = LVCFMT_CENTER;
+		lvc.cx = 60;
+		lvc.iSubItem = 0;
+		lvc.pszText = "stt";
+		ListView_InsertColumn(hListview, 0, &lvc);  
+		lvc.cx = 200;
+		lvc.iSubItem = 1;
+		lvc.pszText = "Name";
+		ListView_InsertColumn(hListview, 1, &lvc);
+		SetFocus(hEdit);
+		return 0;
+
+	case WM_SIZE:
+		cxClient = LOWORD(lparam);
+		cyClient = HIWORD(lparam);
+		MoveWindow(hListview, 20, 80, cxClient - 40, cyClient - 95, TRUE);
+		MoveWindow(hEdit, 120, cyClient - 460, cxClient - 240, 22, TRUE);
+		MoveWindow(hButton, cxClient - 100, cyClient - 460, 80, 22, TRUE);
+		MoveWindow(hStatic, 20, cyClient - 460, 80, 22, TRUE);
+		return 0;
+
+	case WM_COMMAND:
+	{
+					  
+					   switch (LOWORD(wparam))
+					   {
+					   case IDC_BUTTON:
+						   iLength = GetWindowTextLength(hEdit);
+						   if (iLength == 0)
+						   {
+							   MessageBox(hwnd, TEXT("Error or text is NULL"), TEXT("HUY"), MB_OK | MB_ICONEXCLAMATION);
+							   SetFocus(hEdit);
+							   return 0;
+						   }
+						   GetWindowText(hEdit, szFolder, iLength + 1);
+						   if (!PathIsDirectory(szFolder))
+						   {
+							   MessageBox(hwnd, TEXT("nhap sai roi! phai nhap c: moi dung "), TEXT("warning"), MB_OK | MB_ICONEXCLAMATION);
+							   SetFocus(hEdit);
+							   return 0;
+						   }
+						   wsprintf(szText, TEXT("%s\\*.*"), szFolder);
+						   hFind = FindFirstFile(szText, &wfd);
+						   if (hFind == INVALID_HANDLE_VALUE)
+						   {
+							   MessageBox(hwnd, TEXT("Folder is empty"), TEXT("HUY"), MB_OK | MB_ICONEXCLAMATION);
+							   SetFocus(hEdit);
+							   return 0;
+						   }
+
+						   ListView_DeleteAllItems(hListview);
+						   do
+						   {// Đếm và ghi vào Listview các tập tin và thư mục đã tìm được
+							   cCount = ListView_GetItemCount(hListview);
+							   lvi.mask = LVIF_TEXT;
+							   lvi.iItem = cCount;
+							   lvi.iSubItem = 0;
+							   lvi.pszText = szText;
+							   wsprintf(szText, TEXT("%d"), cCount + 1);
+							   ListView_InsertItem(hListview, &lvi);
+							   ListView_SetItemText(hListview, cCount, 1, wfd.cFileName);
+						   } while (FindNextFile(hFind, &wfd));
+						   FindClose(hFind);
+						   return 0;
+					   }
+					   break;
+	}
+
+				
+				
+	
+
+	case WM_CLOSE:
+	{
+					 DestroyWindow(0);
+					 break;
+	}
+	case WM_DESTROY:
+	{
+					   PostQuitMessage(0);
+					   return 0;
+	}
+	}
+	return DefWindowProc(hwnd, msg, wparam, lparam);
+}
+
