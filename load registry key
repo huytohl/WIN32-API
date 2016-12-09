@@ -1,1 +1,114 @@
-coming soon
+
+#include <iostream>
+#include <Windows.h>
+#include <tchar.h>
+
+#define MAX_KEY_LENGTH 255
+#define MAX_VALUE_NAME 16383
+#ifdef UNICODE
+#define TCHAR_FMT "%S"
+#else
+#define TCHAR_FMT "%s"
+#endif
+typedef std::basic_string<TCHAR> tstring;
+
+void QueryKey(HKEY hkey, const tstring &keyPath)
+{
+	TCHAR achKey[MAX_KEY_LENGTH];
+	DWORD cbName;
+	TCHAR achClass[MAX_PATH] = { 0 };
+	DWORD cchClassName = MAX_PATH;
+	DWORD cSubKeys = 0;
+	LPBYTE data = (LPBYTE)malloc(512);
+	DWORD dataType, cbMaxSubKey, cchMaxClass, cValues, dataSize;
+	long lResult;
+	DWORD cchMaxValue, cbMaxValueData;
+	DWORD cbSecurityDescriptor;
+	FILETIME ftLastWriteTime;
+	DWORD i;
+	TCHAR achValue[MAX_VALUE_NAME];
+	DWORD cchValue = MAX_VALUE_NAME;
+	HKEY hTmpKey;
+
+	lResult = RegQueryInfoKey(hkey,
+		achClass, &cchClassName, NULL, &cSubKeys, &cbMaxSubKey, &cchMaxClass,
+		&cValues, &cchMaxValue, &cbMaxValueData, &cbSecurityDescriptor,
+		&ftLastWriteTime);
+
+	if (lResult != ERROR_SUCCESS)
+	{
+		printf("\n cannot query key: " TCHAR_FMT ", error %d", keyPath.c_str(), lResult);
+		return;
+	}
+
+	if (cSubKeys)
+	{
+		printf("\n Number of subkeys: %u", cSubKeys);
+		printf("\n Subkey Names:");
+		for (i = 0; i < cSubKeys; ++i)
+		{
+			cbName = MAX_KEY_LENGTH;
+			lResult = RegEnumKeyEx(hkey, i, achKey, &cbName,
+				NULL, NULL, NULL, &ftLastWriteTime);
+			if (lResult == ERROR_SUCCESS)
+			{
+				achKey[cbName] = 0;
+				printf("\n(%u) " TCHAR_FMT, i + 1, achKey);
+
+				tstring subkeyPath = keyPath + TEXT("\\") + achKey;
+
+				lResult = RegOpenKeyEx(hkey, achKey, 0, KEY_READ, &hTmpKey);
+				if (lResult == ERROR_SUCCESS)
+				{
+					QueryKey(hTmpKey, subkeyPath);
+					RegCloseKey(hTmpKey);
+				}
+				else
+					printf("\n cannot open subkey: " TCHAR_FMT ", error %d", subkeyPath.c_str(), lResult);
+			}
+			else
+				printf("\n cannot query subkey name, error %d", lResult);
+		}
+	}
+	else
+		printf("\n there is no subkey");
+
+	if (cValues)
+	{
+		printf("\n\tNumber of values: %u\n", cValues);
+
+		for (i = 0; i < cValues; ++i)
+		{
+			cchValue = MAX_VALUE_NAME;
+			achValue[0] = 0;
+			dataSize = 512;
+			lResult = RegEnumValue(hkey, i, achValue, &cchValue, NULL,
+				&dataType, data, &dataSize);
+			if (lResult == ERROR_SUCCESS)
+			{
+				achValue[cchValue] = 0;
+				printf("\n\t (%d) %u: " TCHAR_FMT, i + 1, dataType, achValue);
+			}
+			else
+				printf("\n cannot query value name, error %d", lResult);
+		}
+	}
+	else
+		printf("\n there is no value");
+}
+
+int main(int argc, char *argv[])
+{
+	HKEY hTestKey;
+
+	printf("\n-------Registry Information----------");
+	printf("\n HIVE_NAME :  HKEY_CURRENT_USER");
+
+	if (RegOpenKeyEx(HKEY_CURRENT_USER, TEXT("Printers"), 0, KEY_READ, &hTestKey) == ERROR_SUCCESS)
+	{
+		QueryKey(hTestKey, TEXT("\\"));
+		RegCloseKey(hTestKey);
+	}
+
+	return 0;
+}
